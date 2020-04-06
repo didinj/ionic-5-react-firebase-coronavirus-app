@@ -1,0 +1,8 @@
+{
+  "appId": "io.ionic.starter",
+  "appName": "coronavirus",
+  "bundledWebRuntime": false,
+  "npmClient": "npm",
+  "webDir": "build",
+  "cordova": {}
+}
