@@ -10,79 +10,56 @@ import { IonContent,
   IonGrid,
   IonRow,
   IonCol,
-  IonButton,
   IonButtons,
-  IonIcon
- } from '@ionic/react';
+  IonBackButton,
+  IonLoading
+  } from '@ionic/react';
 import React, { useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
 import firebase from '../Firebase';
-import './Home.css';
-import { add } from 'ionicons/icons'
 
-const Home: React.FC = () => {
+const Details: React.FC = (props) => {
 
-  // Set required variables
-  const [datenow, setDate] = useState(
-    new Intl.DateTimeFormat("en-GB", {
-      year: "numeric",
-      month: "long",
-      day: "2-digit"
-    }).format(new Date())
-  )
-  const [cases, setCases] = useState(0)
-  const [deaths, setDeaths] = useState(0)
-  const [recov, setRecov] = useState(0)
+  let prop: any = props;
+  let match: any = prop.match;
+
+  const dbref = firebase.database().ref('coronavirus/') 
   const [caseChart, setCaseChart] = useState({})
   const [deathChart, setDeathChart] = useState({})
   const [recovChart, setRecovChart] = useState({})
-
-  // load Firebase collection
-  const dbref = firebase.database().ref('coronavirus/') 
+  const [showLoading, setShowLoading] = useState(true);
+  const [cases, setCases] = useState(0)
+  const [deaths, setDeaths] = useState(0)
+  const [recov, setRecov] = useState(0)
 
   useEffect(() => {
     loadData()
   }, [])
 
   const loadData = () => {
+    console.log(match.params.name) 
     // Extract Firebase collection to array
-    dbref.on('value', resp => {
-      let data: any[] = snapshotToArray(resp)
-      // Sum total
-      let caseCount = 0
-      let deathCount = 0
-      let recovCount = 0
-      data.forEach((doc) => {
-        caseCount = caseCount + doc.cases
-        deathCount = deathCount + doc.deaths
-        recovCount = recovCount + doc.recovered
-      });
-      setCases(caseCount)
-      setDeaths(deathCount)
-      setRecov(recovCount)
-
-      // Build charts
-      let chartData: any[] = []
+    dbref.orderByChild('country').equalTo(match.params.name).on('value', resp => {
+      let respdata = snapshotToArray(resp)
       let caseDate: any[] = []
       let caseAmount: any[] = []
       let deathAmount: any[] = []
       let recovAmount: any[] = []
-      data.reduce((res, value) => {
-        if (!res[value.date]) {
-          res[value.date] = { date: value.date, cases: 0, deaths: 0, recovered: 0 };
-          chartData.push(res[value.date])
-        }
-        res[value.date].cases += value.cases;
-        res[value.date].deaths += value.deaths;
-        res[value.date].recovered += value.recovered;
-        return res;
-      }, {});
-      chartData.forEach((cd) => {
-        caseDate.push(cd.date)
-        caseAmount.push(cd.cases)
-        deathAmount.push(cd.deaths)
-        recovAmount.push(cd.recovered)
+      let caseCount = 0
+      let deathCount = 0
+      let recovCount = 0
+      respdata.forEach((dt) => {
+        caseDate.push(dt.date)
+        caseAmount.push(dt.cases)
+        deathAmount.push(dt.deaths)
+        recovAmount.push(dt.recovered)
+        caseCount = caseCount + dt.cases
+        deathCount = deathCount + dt.deaths
+        recovCount = recovCount + dt.recovered
       })
+      setCases(caseCount)
+      setDeaths(deathCount)
+      setRecov(recovCount)
       setCaseChart({
         labels: caseDate,
         datasets: [
@@ -101,7 +78,7 @@ const Home: React.FC = () => {
         labels: caseDate,
         datasets: [
           {
-            label: 'Deaths Chart',
+            label: 'Cases Chart',
             backgroundColor: 'rgba(255,99,132,0.2)',
             borderColor: 'rgba(255,99,132,1)',
             borderWidth: 1,
@@ -115,7 +92,7 @@ const Home: React.FC = () => {
         labels: caseDate,
         datasets: [
           {
-            label: 'Recovered Chart',
+            label: 'Cases Chart',
             backgroundColor: 'rgba(255,99,132,0.2)',
             borderColor: 'rgba(255,99,132,1)',
             borderWidth: 1,
@@ -125,6 +102,7 @@ const Home: React.FC = () => {
           }
         ]
       })
+      setShowLoading(false);
     });
   }
 
@@ -132,9 +110,9 @@ const Home: React.FC = () => {
     const returnArr: any[] = []
   
     snapshot.forEach((childSnapshot: any) => {
-        const item = childSnapshot.val()
-        item.key = childSnapshot.key
-        returnArr.push(item)
+      const item = childSnapshot.val()
+      item.key = childSnapshot.key
+      returnArr.push(item)
     });
   
     return returnArr;
@@ -144,18 +122,21 @@ const Home: React.FC = () => {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>Coronavirus Dashboard</IonTitle>
-          <IonButtons slot="end">
-            <IonButton routerLink="/input">
-              <IonIcon slot="icon-only" icon={add} />
-            </IonButton>
+          <IonButtons slot="start">
+            <IonBackButton defaultHref="/list" />
           </IonButtons>
+          <IonTitle>Country Details</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent>
+        <IonLoading
+            isOpen={showLoading}
+            onDidDismiss={() => setShowLoading(false)}
+            message={'Loading...'}
+        />
         <IonCard color="light">
           <IonCardHeader>
-            <IonCardTitle>Latest Situation per {datenow}</IonCardTitle>
+            <IonCardTitle>{match.params.name}</IonCardTitle>
           </IonCardHeader>
           <IonCardContent>
             <IonGrid>
@@ -204,17 +185,13 @@ const Home: React.FC = () => {
                   />
                 </IonCol>
               </IonRow>
-              <IonRow>
-                <IonCol>
-                  <IonButton expand="block" fill="solid" color="secondary" routerLink="/list">Show List of Countries</IonButton>
-                </IonCol>      
-              </IonRow>
             </IonGrid>
           </IonCardContent>
         </IonCard>
       </IonContent>
     </IonPage>
   );
-};
 
-export default Home;
+}
+
+export default Details;
